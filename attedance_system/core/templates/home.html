@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Attendance System</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body { font-family: Arial; background: #f4f4f4; }
+.container { width: 90%; margin: auto; }
+
+.card {
+    background: white;
+    padding: 20px;
+    margin: 15px 0;
+    border-radius: 10px;
+}
+
+button { padding: 5px 10px; margin: 2px; }
+
+.progress {
+    background: #ddd;
+    height: 10px;
+}
+
+.progress-bar {
+    background: green;
+    height: 10px;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Attendance Dashboard</h1>
+
+<!-- Add Student -->
+<div class="card">
+<h2>Add Student</h2>
+<input id="name" placeholder="Name">
+<button onclick="addStudent()">Add</button>
+</div>
+
+<!-- Upload Excel -->
+<div class="card">
+<h2>Upload Excel</h2>
+<form id="uploadForm">
+<input type="file" id="file">
+<button>Upload</button>
+</form>
+</div>
+
+<!-- Attendance -->
+<div class="card">
+<h2>Mark Attendance</h2>
+
+{% for s in students %}
+<p>
+{{ s.name }}
+<button onclick="mark({{ s.id }}, true)">Present</button>
+<button onclick="mark({{ s.id }}, false)">Absent</button>
+</p>
+{% endfor %}
+
+</div>
+
+<!-- Dashboard -->
+<div class="card">
+<h2>Dashboard</h2>
+
+<table border="1" width="100%">
+<thead>
+<tr>
+<th>Name</th>
+<th>Present</th>
+<th>Absent</th>
+<th>%</th>
+</tr>
+</thead>
+
+<tbody id="data"></tbody>
+</table>
+
+</div>
+
+<canvas id="chart"></canvas>
+
+</div>
+
+<script>
+
+function addStudent() {
+    let name = document.getElementById("name").value;
+
+    fetch('/add/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `name=${name}`
+    }).then(() => location.reload());
+}
+
+function mark(id, status) {
+    fetch('/mark/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `student_id=${id}&status=${status}`
+    }).then(load);
+}
+
+function load() {
+    fetch('/dashboard/')
+    .then(res => res.json())
+    .then(d => {
+        let table = document.getElementById("data");
+        table.innerHTML = "";
+
+        let labels = [];
+        let values = [];
+
+        d.data.forEach(i => {
+            labels.push(i.name);
+            values.push(i.percentage);
+
+            table.innerHTML += `
+            <tr>
+            <td>${i.name}</td>
+            <td>${i.present}</td>
+            <td>${i.absent}</td>
+            <td>${i.percentage}%</td>
+            </tr>`;
+        });
+
+        drawChart(labels, values);
+    });
+}
+
+function drawChart(labels, data) {
+    const ctx = document.getElementById('chart');
+
+    if(window.chart) window.chart.destroy();
+
+    window.chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{ data: data }]
+        }
+    });
+}
+
+document.getElementById("uploadForm").onsubmit = function(e) {
+    e.preventDefault();
+
+    let formData = new FormData();
+    let file = document.getElementById("file").files[0];
+    formData.append("file", file);
+
+    fetch('/upload/', {
+        method: 'POST',
+        body: formData
+    }).then(() => location.reload());
+};
+
+load();
+
+</script>
+
+</body>
+</html>
